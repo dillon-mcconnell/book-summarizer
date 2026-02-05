@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Book Chapter Summaries</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+
+        h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+            width: 100%;
+            font-weight: 600;
+        }
+
+        button:hover {
+            background: #5568d3;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .small-btn {
+            background: #dc3545;
+            padding: 8px 16px;
+            font-size: 14px;
+            width: auto;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 30px 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading p {
+            color: #667eea;
+            font-weight: 500;
+        }
+
+        .summary-result {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            line-height: 1.6;
+            display: none;
+        }
+
+        .summary-result.show {
+            display: block;
+        }
+
+        .summary-result h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .summary-result p {
+            color: #333;
+            margin-bottom: 12px;
+        }
+
+        .small {
+            font-size: 12px;
+            color: #666;
+            margin-top: 10px;
+        }
+
+        .settings {
+            text-align: center;
+        }
+
+        .error {
+            background: #fee;
+            border: 1px solid #fcc;
+            color: #c33;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        @media (max-width: 640px) {
+            body {
+                padding: 15px;
+            }
+            
+            h1 {
+                font-size: 1.5em;
+                margin-bottom: 20px;
+            }
+            
+            .card {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📚 Book Chapter Summaries</h1>
+        
+        <!-- API Key Section -->
+        <div id="api-key-section" class="card">
+            <h2>Setup</h2>
+            <p>Enter your OpenAI API key (stored locally in your browser):</p>
+            <input type="password" id="api-key-input" placeholder="sk-...">
+            <button id="save-key-btn">Save API Key</button>
+            <p class="small">Get your API key from <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com/api-keys</a></p>
+        </div>
+
+        <!-- Main App Section -->
+        <div id="app-section" class="card" style="display: none;">
+            <h2>Get Your Summary</h2>
+            
+            <div class="form-group">
+                <label for="book-title">Book Title:</label>
+                <input type="text" id="book-title" placeholder="e.g., The Great Gatsby">
+            </div>
+
+            <div class="form-group">
+                <label for="book-author">Author:</label>
+                <input type="text" id="book-author" placeholder="e.g., F. Scott Fitzgerald">
+            </div>
+
+            <div class="form-group">
+                <label for="chapter-number">Last Chapter Completed:</label>
+                <input type="number" id="chapter-number" min="1" placeholder="e.g., 5">
+            </div>
+
+            <button id="get-summary-btn">Get Summary</button>
+
+            <div id="loading" class="loading" style="display: none;">
+                <div class="spinner"></div>
+                <p>Generating your summary...</p>
+            </div>
+
+            <div id="summary-result" class="summary-result"></div>
+        </div>
+
+        <div class="settings">
+            <button id="clear-key-btn" class="small-btn">Clear API Key</button>
+        </div>
+    </div>
+
+    <script>
+        // CHANGE THIS TO YOUR CLOUDFLARE WORKER URL!
+        const WORKER_URL = 'https://book-summary-api.YOUR-USERNAME.workers.dev';
+
+        // Check if API key exists on load
+        window.addEventListener('load', function() {
+            const apiKey = localStorage.getItem('openai_api_key');
+            if (apiKey) {
+                document.getElementById('api-key-section').style.display = 'none';
+                document.getElementById('app-section').style.display = 'block';
+            }
+        });
+
+        // Save API Key button
+        document.getElementById('save-key-btn').addEventListener('click', function() {
+            const apiKey = document.getElementById('api-key-input').value.trim();
+            if (apiKey && apiKey.length > 0) {
+                localStorage.setItem('openai_api_key', apiKey);
+                document.getElementById('api-key-section').style.display = 'none';
+                document.getElementById('app-section').style.display = 'block';
+                alert('API Key saved successfully!');
+            } else {
+                alert('Please enter a valid API key');
+            }
+        });
+
+        // Clear API Key button
+        document.getElementById('clear-key-btn').addEventListener('click', function() {
+            if (confirm('Are you sure you want to clear your API key?')) {
+                localStorage.removeItem('openai_api_key');
+                document.getElementById('api-key-section').style.display = 'block';
+                document.getElementById('app-section').style.display = 'none';
+                document.getElementById('api-key-input').value = '';
+                document.getElementById('book-title').value = '';
+                document.getElementById('book-author').value = '';
+                document.getElementById('chapter-number').value = '';
+                document.getElementById('summary-result').innerHTML = '';
+            }
+        });
+
+        // Get Summary button
+        document.getElementById('get-summary-btn').addEventListener('click', async function() {
+            const bookTitle = document.getElementById('book-title').value.trim();
+            const bookAuthor = document.getElementById('book-author').value.trim();
+            const chapterNumber = document.getElementById('chapter-number').value;
+            
+            if (!bookTitle) {
+                alert('Please enter a book title');
+                return;
+            }
+            
+            if (!bookAuthor) {
+                alert('Please enter the author name');
+                return;
+            }
+            
+            if (!chapterNumber || chapterNumber < 1) {
+                alert('Please enter a valid chapter number');
+                return;
+            }
+            
+            const apiKey = localStorage.getItem('openai_api_key');
+            if (!apiKey) {
+                alert('API key not found');
+                return;
+            }
+            
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('summary-result').innerHTML = '';
+            document.getElementById('summary-result').classList.remove('show');
+            
+            try {
+                const response = await fetch(WORKER_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        bookTitle: bookTitle,
+                        bookAuthor: bookAuthor,
+                        chapterNumber: chapterNumber,
+                        apiKey: apiKey
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error.message || 'API error');
+                }
+                
+                const summary = data.choices[0].message.content;
+                
+                const summaryDiv = document.getElementById('summary-result');
+                summaryDiv.innerHTML = `
+                    <h3>${bookTitle} by ${bookAuthor}</h3>
+                    <p><strong>Summary through Chapter ${chapterNumber}</strong></p>
+                    <hr style="margin: 15px 0; border: none; border-top: 1px solid #ddd;">
+                    <div>${summary.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}</div>
+                `;
+                summaryDiv.classList.add('show');
+                
+            } catch (error) {
+                const summaryDiv = document.getElementById('summary-result');
+                summaryDiv.innerHTML = `
+                    <div class="error">
+                        <strong>Error:</strong> ${error.message}
+                        <br><br>
+                        Check: API key, OpenAI credits, and Worker URL
+                    </div>
+                `;
+                summaryDiv.classList.add('show');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        });
+
+        // Enter key support
+        ['book-title', 'book-author', 'chapter-number'].forEach(id => {
+            document.getElementById(id).addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    document.getElementById('get-summary-btn').click();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
