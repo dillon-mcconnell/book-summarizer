@@ -34,7 +34,7 @@ function clearApiKey() {
     }
 }
 
-// Get summary using Claude API
+// Get summary using Claude API with CORS proxy
 async function getSummary() {
     const bookTitle = document.getElementById('book-title').value.trim();
     const bookAuthor = document.getElementById('book-author').value.trim();
@@ -68,7 +68,11 @@ async function getSummary() {
     document.getElementById('summary-result').classList.remove('show');
     
     try {
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
+        // Using CORS proxy
+        const corsProxy = 'https://corsproxy.io/?';
+        const apiUrl = corsProxy + encodeURIComponent('https://api.anthropic.com/v1/messages');
+        
+        const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -80,37 +84,44 @@ async function getSummary() {
                 max_tokens: 4000,
                 messages: [{
                     role: 'user',
-                    content: `I need a comprehensive summary of the book "${bookTitle}" by ${bookAuthor}, covering everything from the beginning up to and including chapter ${chapterNumber}.
+                    content: `Please provide a comprehensive summary of the book "${bookTitle}" by ${bookAuthor}, covering everything from the beginning up to and including chapter ${chapterNumber}.
 
-Please search online for chapter summaries and information about this book, then provide:
+Please include:
 
 1. **Story So Far**: A detailed overview of what has happened up to chapter ${chapterNumber}
 2. **Key Plot Points**: Major events and developments in chronological order
 3. **Character Development**: Important changes or revelations about main characters
 4. **Major Themes**: Key themes that have been introduced or developed
 
-Please be thorough and detailed. Do not include any spoilers beyond chapter ${chapterNumber}.`
-                }],
-                tools: [{
-                    type: "web_search_20250305",
-                    name: "web_search"
+Please be thorough and detailed, but do not include any spoilers beyond chapter ${chapterNumber}.`
                 }]
             })
         });
         
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error?.message || `API error: ${response.status}`);
+            const errorText = await response.text();
+            let errorMessage;
+            try {
+                const errorData = JSON.parse(errorText);
+                errorMessage = errorData.error?.message || `API error: ${response.status}`;
+            } catch {
+                errorMessage = `API error: ${response.status} - ${errorText}`;
+            }
+            throw new Error(errorMessage);
         }
         
         const data = await response.json();
         
-        // Extract text from response (handling tool use)
+        // Extract text from response
         let summary = '';
         for (const block of data.content) {
             if (block.type === 'text') {
                 summary += block.text;
             }
+        }
+        
+        if (!summary) {
+            throw new Error('No summary text received from API');
         }
         
         // Display summary
@@ -119,17 +130,24 @@ Please be thorough and detailed. Do not include any spoilers beyond chapter ${ch
             <h3>${bookTitle} by ${bookAuthor}</h3>
             <p><strong>Summary through Chapter ${chapterNumber}</strong></p>
             <hr style="margin: 15px 0; border: none; border-top: 1px solid #ddd;">
-            <div>${summary.replace(/\n/g, '<br><br>')}</div>
+            <div>${summary.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}</div>
         `;
         summaryDiv.classList.add('show');
         
     } catch (error) {
+        console.error('Full error:', error);
         const summaryDiv = document.getElementById('summary-result');
         summaryDiv.innerHTML = `
             <div class="error">
                 <strong>Error:</strong> ${error.message}
                 <br><br>
-                Please check your API key and make sure you have credits in your Anthropic account.
+                <strong>Troubleshooting:</strong>
+                <ul style="text-align: left; margin-top: 10px;">
+                    <li>Verify your API key is correct (starts with "sk-ant-")</li>
+                    <li>Check that you have credits in your Anthropic account</li>
+                    <li>Make sure your API key has the necessary permissions</li>
+                    <li>The CORS proxy might be temporarily down - try again in a few minutes</li>
+                </ul>
             </div>
         `;
         summaryDiv.classList.add('show');
