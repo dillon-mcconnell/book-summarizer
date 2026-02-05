@@ -24,17 +24,19 @@
 
         <!-- Main App Section -->
         <div id="app-section" class="card" style="display: none;">
-            <h2>Find Your Summary</h2>
+            <h2>Get Your Summary</h2>
             
-            <!-- Book Search -->
+            <!-- Book Title -->
             <div class="form-group">
-                <label for="book-search">Book Title:</label>
-                <input type="text" id="book-search" placeholder="Start typing a book title...">
-                <div id="book-results" class="results-dropdown"></div>
+                <label for="book-title">Book Title:</label>
+                <input type="text" id="book-title" placeholder="e.g., The Great Gatsby">
             </div>
 
-            <!-- Selected Book Display -->
-            <div id="selected-book" class="selected-book" style="display: none;"></div>
+            <!-- Book Author -->
+            <div class="form-group">
+                <label for="book-author">Author:</label>
+                <input type="text" id="book-author" placeholder="e.g., F. Scott Fitzgerald">
+            </div>
 
             <!-- Chapter Input -->
             <div class="form-group">
@@ -46,6 +48,7 @@
 
             <!-- Loading and Results -->
             <div id="loading" class="loading" style="display: none;">
+                <div class="spinner"></div>
                 <p>Generating your summary...</p>
             </div>
 
