@@ -1,6 +1,6 @@
 // Check if API key exists on page load
 window.onload = function() {
-    const apiKey = localStorage.getItem('claude_api_key');
+    const apiKey = localStorage.getItem('openai_api_key');
     if (apiKey) {
         document.getElementById('api-key-section').style.display = 'none';
         document.getElementById('app-section').style.display = 'block';
@@ -11,7 +11,7 @@ window.onload = function() {
 function saveApiKey() {
     const apiKey = document.getElementById('api-key-input').value.trim();
     if (apiKey) {
-        localStorage.setItem('claude_api_key', apiKey);
+        localStorage.setItem('openai_api_key', apiKey);
         document.getElementById('api-key-section').style.display = 'none';
         document.getElementById('app-section').style.display = 'block';
         alert('API Key saved successfully!');
@@ -23,7 +23,7 @@ function saveApiKey() {
 // Clear API Key
 function clearApiKey() {
     if (confirm('Are you sure you want to clear your API key?')) {
-        localStorage.removeItem('claude_api_key');
+        localStorage.removeItem('openai_api_key');
         document.getElementById('api-key-section').style.display = 'block';
         document.getElementById('app-section').style.display = 'none';
         document.getElementById('api-key-input').value = '';
@@ -34,7 +34,7 @@ function clearApiKey() {
     }
 }
 
-// Get summary using Claude API with CORS proxy
+// Get summary using OpenAI API
 async function getSummary() {
     const bookTitle = document.getElementById('book-title').value.trim();
     const bookAuthor = document.getElementById('book-author').value.trim();
@@ -56,7 +56,7 @@ async function getSummary() {
         return;
     }
     
-    const apiKey = localStorage.getItem('claude_api_key');
+    const apiKey = localStorage.getItem('openai_api_key');
     if (!apiKey) {
         alert('API key not found. Please set it up first.');
         return;
@@ -68,25 +68,19 @@ async function getSummary() {
     document.getElementById('summary-result').classList.remove('show');
     
     try {
-        // Using CORS proxy
-        const corsProxy = 'https://corsproxy.io/?';
-        const apiUrl = corsProxy + encodeURIComponent('https://api.anthropic.com/v1/messages');
-        
-        const response = await fetch(apiUrl, {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'x-api-key': apiKey,
-                'anthropic-version': '2023-06-01'
+                'Authorization': `Bearer ${apiKey}`
             },
             body: JSON.stringify({
-                model: 'claude-sonnet-4-20250514',
-                max_tokens: 4000,
+                model: 'gpt-4o',
                 messages: [{
                     role: 'user',
                     content: `Please provide a comprehensive summary of the book "${bookTitle}" by ${bookAuthor}, covering everything from the beginning up to and including chapter ${chapterNumber}.
 
-Please include:
+Please structure your response with these sections:
 
 1. **Story So Far**: A detailed overview of what has happened up to chapter ${chapterNumber}
 2. **Key Plot Points**: Major events and developments in chronological order
@@ -94,35 +88,19 @@ Please include:
 4. **Major Themes**: Key themes that have been introduced or developed
 
 Please be thorough and detailed, but do not include any spoilers beyond chapter ${chapterNumber}.`
-                }]
+                }],
+                max_tokens: 2000,
+                temperature: 0.7
             })
         });
         
         if (!response.ok) {
-            const errorText = await response.text();
-            let errorMessage;
-            try {
-                const errorData = JSON.parse(errorText);
-                errorMessage = errorData.error?.message || `API error: ${response.status}`;
-            } catch {
-                errorMessage = `API error: ${response.status} - ${errorText}`;
-            }
-            throw new Error(errorMessage);
+            const errorData = await response.json();
+            throw new Error(errorData.error?.message || `API error: ${response.status}`);
         }
         
         const data = await response.json();
-        
-        // Extract text from response
-        let summary = '';
-        for (const block of data.content) {
-            if (block.type === 'text') {
-                summary += block.text;
-            }
-        }
-        
-        if (!summary) {
-            throw new Error('No summary text received from API');
-        }
+        const summary = data.choices[0].message.content;
         
         // Display summary
         const summaryDiv = document.getElementById('summary-result');
@@ -130,7 +108,7 @@ Please be thorough and detailed, but do not include any spoilers beyond chapter 
             <h3>${bookTitle} by ${bookAuthor}</h3>
             <p><strong>Summary through Chapter ${chapterNumber}</strong></p>
             <hr style="margin: 15px 0; border: none; border-top: 1px solid #ddd;">
-            <div>${summary.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}</div>
+            <div>${summary.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}</div>
         `;
         summaryDiv.classList.add('show');
         
@@ -143,10 +121,9 @@ Please be thorough and detailed, but do not include any spoilers beyond chapter 
                 <br><br>
                 <strong>Troubleshooting:</strong>
                 <ul style="text-align: left; margin-top: 10px;">
-                    <li>Verify your API key is correct (starts with "sk-ant-")</li>
-                    <li>Check that you have credits in your Anthropic account</li>
-                    <li>Make sure your API key has the necessary permissions</li>
-                    <li>The CORS proxy might be temporarily down - try again in a few minutes</li>
+                    <li>Verify your API key is correct (starts with "sk-")</li>
+                    <li>Check that you have credits in your OpenAI account</li>
+                    <li>Visit <a href="https://platform.openai.com/usage" target="_blank">platform.openai.com/usage</a> to check your balance</li>
                 </ul>
             </div>
         `;
