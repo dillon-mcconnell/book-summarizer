@@ -1,3 +1,6 @@
+// PUT YOUR CLOUDFLARE WORKER URL HERE
+const WORKER_URL = 'https://book-summary-api.dillonmcconnell23.workers.dev'; // CHANGE THIS!
+
 // Check if API key exists on page load
 window.onload = function() {
     const apiKey = localStorage.getItem('openai_api_key');
@@ -34,7 +37,7 @@ function clearApiKey() {
     }
 }
 
-// Get summary using OpenAI API
+// Get summary
 async function getSummary() {
     const bookTitle = document.getElementById('book-title').value.trim();
     const bookAuthor = document.getElementById('book-author').value.trim();
@@ -68,38 +71,29 @@ async function getSummary() {
     document.getElementById('summary-result').classList.remove('show');
     
     try {
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        const response = await fetch(WORKER_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
             },
             body: JSON.stringify({
-                model: 'gpt-4o',
-                messages: [{
-                    role: 'user',
-                    content: `Please provide a comprehensive summary of the book "${bookTitle}" by ${bookAuthor}, covering everything from the beginning up to and including chapter ${chapterNumber}.
-
-Please structure your response with these sections:
-
-1. **Story So Far**: A detailed overview of what has happened up to chapter ${chapterNumber}
-2. **Key Plot Points**: Major events and developments in chronological order
-3. **Character Development**: Important changes or revelations about main characters
-4. **Major Themes**: Key themes that have been introduced or developed
-
-Please be thorough and detailed, but do not include any spoilers beyond chapter ${chapterNumber}.`
-                }],
-                max_tokens: 2000,
-                temperature: 0.7
+                bookTitle,
+                bookAuthor,
+                chapterNumber,
+                apiKey
             })
         });
         
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error?.message || `API error: ${response.status}`);
+            throw new Error(`Error: ${response.status}`);
         }
         
         const data = await response.json();
+        
+        if (data.error) {
+            throw new Error(data.error.message || 'Unknown error occurred');
+        }
+        
         const summary = data.choices[0].message.content;
         
         // Display summary
@@ -113,17 +107,17 @@ Please be thorough and detailed, but do not include any spoilers beyond chapter 
         summaryDiv.classList.add('show');
         
     } catch (error) {
-        console.error('Full error:', error);
+        console.error('Error:', error);
         const summaryDiv = document.getElementById('summary-result');
         summaryDiv.innerHTML = `
             <div class="error">
                 <strong>Error:</strong> ${error.message}
                 <br><br>
-                <strong>Troubleshooting:</strong>
+                Please check:
                 <ul style="text-align: left; margin-top: 10px;">
-                    <li>Verify your API key is correct (starts with "sk-")</li>
-                    <li>Check that you have credits in your OpenAI account</li>
-                    <li>Visit <a href="https://platform.openai.com/usage" target="_blank">platform.openai.com/usage</a> to check your balance</li>
+                    <li>Your OpenAI API key is correct</li>
+                    <li>You have credits in your OpenAI account</li>
+                    <li>The Cloudflare Worker URL is correct in the code</li>
                 </ul>
             </div>
         `;
