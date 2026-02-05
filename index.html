@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Book Summaries">
@@ -61,4 +62,172 @@
         </div>
     </div>
 
-    <scrip
+    <script>
+        // PUT YOUR CLOUDFLARE WORKER URL HERE
+        const WORKER_URL = 'https://book-summary-api.YOUR-USERNAME.workers.dev'; // CHANGE THIS!
+
+        // Check if API key exists on page load
+        window.onload = function() {
+            console.log('Page loaded');
+            const apiKey = localStorage.getItem('openai_api_key');
+            if (apiKey) {
+                console.log('API key found');
+                document.getElementById('api-key-section').style.display = 'none';
+                document.getElementById('app-section').style.display = 'block';
+            } else {
+                console.log('No API key found');
+            }
+        };
+
+        // Save API Key
+        function saveApiKey() {
+            console.log('saveApiKey function called');
+            const apiKeyInput = document.getElementById('api-key-input');
+            const apiKey = apiKeyInput.value.trim();
+            
+            console.log('API Key length:', apiKey.length);
+            
+            if (apiKey && apiKey.length > 0) {
+                localStorage.setItem('openai_api_key', apiKey);
+                console.log('API Key saved to localStorage');
+                document.getElementById('api-key-section').style.display = 'none';
+                document.getElementById('app-section').style.display = 'block';
+                alert('API Key saved successfully!');
+            } else {
+                alert('Please enter a valid API key');
+            }
+        }
+
+        // Clear API Key
+        function clearApiKey() {
+            if (confirm('Are you sure you want to clear your API key?')) {
+                localStorage.removeItem('openai_api_key');
+                document.getElementById('api-key-section').style.display = 'block';
+                document.getElementById('app-section').style.display = 'none';
+                document.getElementById('api-key-input').value = '';
+                document.getElementById('book-title').value = '';
+                document.getElementById('book-author').value = '';
+                document.getElementById('chapter-number').value = '';
+                document.getElementById('summary-result').innerHTML = '';
+                alert('API Key cleared');
+            }
+        }
+
+        // Get summary
+        async function getSummary() {
+            console.log('getSummary called');
+            
+            const bookTitle = document.getElementById('book-title').value.trim();
+            const bookAuthor = document.getElementById('book-author').value.trim();
+            const chapterNumber = document.getElementById('chapter-number').value;
+            
+            console.log('Book:', bookTitle, 'Author:', bookAuthor, 'Chapter:', chapterNumber);
+            
+            // Validation
+            if (!bookTitle) {
+                alert('Please enter a book title');
+                return;
+            }
+            
+            if (!bookAuthor) {
+                alert('Please enter the author name');
+                return;
+            }
+            
+            if (!chapterNumber || chapterNumber < 1) {
+                alert('Please enter a valid chapter number');
+                return;
+            }
+            
+            const apiKey = localStorage.getItem('openai_api_key');
+            if (!apiKey) {
+                alert('API key not found. Please set it up first.');
+                return;
+            }
+            
+            // Show loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('summary-result').innerHTML = '';
+            document.getElementById('summary-result').classList.remove('show');
+            
+            try {
+                console.log('Calling worker at:', WORKER_URL);
+                
+                const response = await fetch(WORKER_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        bookTitle: bookTitle,
+                        bookAuthor: bookAuthor,
+                        chapterNumber: chapterNumber,
+                        apiKey: apiKey
+                    })
+                });
+                
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('Response data:', data);
+                
+                if (data.error) {
+                    throw new Error(data.error.message || 'Unknown error from API');
+                }
+                
+                const summary = data.choices[0].message.content;
+                
+                // Display summary
+                const summaryDiv = document.getElementById('summary-result');
+                summaryDiv.innerHTML = `
+                    <h3>${bookTitle} by ${bookAuthor}</h3>
+                    <p><strong>Summary through Chapter ${chapterNumber}</strong></p>
+                    <hr style="margin: 15px 0; border: none; border-top: 1px solid #ddd;">
+                    <div>${summary.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}</div>
+                `;
+                summaryDiv.classList.add('show');
+                
+            } catch (error) {
+                console.error('Full error:', error);
+                const summaryDiv = document.getElementById('summary-result');
+                summaryDiv.innerHTML = `
+                    <div class="error">
+                        <strong>Error:</strong> ${error.message}
+                        <br><br>
+                        Troubleshooting:
+                        <ul style="text-align: left; margin-top: 10px;">
+                            <li>Check your OpenAI API key is correct</li>
+                            <li>Verify you have credits at <a href="https://platform.openai.com/usage" target="_blank">platform.openai.com/usage</a></li>
+                            <li>Make sure the Cloudflare Worker URL is set correctly (line 54)</li>
+                            <li>Check browser console (F12) for more details</li>
+                        </ul>
+                    </div>
+                `;
+                summaryDiv.classList.add('show');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        // Allow Enter key to submit
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, setting up enter key listeners');
+            const inputs = ['book-title', 'book-author', 'chapter-number'];
+            inputs.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.addEventListener('keypress', function(e) {
+                        if (e.key === 'Enter') {
+                            getSummary();
+                        }
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
