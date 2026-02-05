@@ -80,16 +80,20 @@ async function getSummary() {
                 max_tokens: 4000,
                 messages: [{
                     role: 'user',
-                    content: `Please provide a comprehensive summary of "${bookTitle}" by ${bookAuthor}, covering everything up to and including chapter ${chapterNumber}.
+                    content: `I need a comprehensive summary of the book "${bookTitle}" by ${bookAuthor}, covering everything from the beginning up to and including chapter ${chapterNumber}.
 
-Please structure your response as follows:
+Please search online for chapter summaries and information about this book, then provide:
 
 1. **Story So Far**: A detailed overview of what has happened up to chapter ${chapterNumber}
-2. **Key Plot Points**: Major events and developments
+2. **Key Plot Points**: Major events and developments in chronological order
 3. **Character Development**: Important changes or revelations about main characters
-4. **Themes**: Major themes that have been introduced or developed
+4. **Major Themes**: Key themes that have been introduced or developed
 
-Please be thorough but concise. Do not include any spoilers beyond chapter ${chapterNumber}.`
+Please be thorough and detailed. Do not include any spoilers beyond chapter ${chapterNumber}.`
+                }],
+                tools: [{
+                    type: "web_search_20250305",
+                    name: "web_search"
                 }]
             })
         });
@@ -100,7 +104,14 @@ Please be thorough but concise. Do not include any spoilers beyond chapter ${cha
         }
         
         const data = await response.json();
-        const summary = data.content[0].text;
+        
+        // Extract text from response (handling tool use)
+        let summary = '';
+        for (const block of data.content) {
+            if (block.type === 'text') {
+                summary += block.text;
+            }
+        }
         
         // Display summary
         const summaryDiv = document.getElementById('summary-result');
